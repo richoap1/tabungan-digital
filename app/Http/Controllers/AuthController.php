@@ -16,11 +16,14 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        $credentials = $request->only('email', 'password');
+        $credentials = $request->validate([
+            'email' => 'required|email',
+            'password' => 'required|string',
+        ]);
 
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
-            return redirect()->intended('/dashboard');
+            return $this->redirectToDashboard();
         }
 
         return back()->withErrors([
@@ -47,7 +50,8 @@ class AuthController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users',
             'password' => 'required|confirmed|min:6',
-            'role' => 'required|in:siswa,bendahara,guru',
+            'role' => 'required|in:admin,siswa,bendahara,guru',
+            'kelas_id' => 'nullable|exists:kelas,id',
         ]);
 
         $user = User::create([
@@ -55,11 +59,22 @@ class AuthController extends Controller
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => $validated['role'],
-            'kelas_id' => $request->kelas_id ?? null,
+            'kelas_id' => $validated['kelas_id'] ?? null,
         ]);
 
         Auth::login($user);
 
-        return redirect('/dashboard');
+        return $this->redirectToDashboard();
+    }
+
+    private function redirectToDashboard()
+    {
+        return match (Auth::user()->role) {
+            'siswa' => redirect()->intended(route('siswa.dashboard')),
+            'bendahara' => redirect()->intended(route('bendahara.dashboard')),
+            'guru' => redirect()->intended(route('guru.dashboard')),
+            'admin' => redirect()->intended(route('admin.dashboard')),
+            default => abort(403, 'Role tidak memiliki dashboard.'),
+        };
     }
 }

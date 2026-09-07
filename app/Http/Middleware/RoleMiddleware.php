@@ -13,7 +13,7 @@ class RoleMiddleware
         /** @var \App\Models\User $user */
         $user = auth()->user();
 
-        if (!in_array($user->role, $roles)) {
+        if ($user->role !== 'admin' && !in_array($user->role, $roles, true)) {
             abort(403, 'Access denied');
         }
 
